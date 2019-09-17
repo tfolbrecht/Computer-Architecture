@@ -7,36 +7,75 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.registers = [0] * 8
+        self.running = False
+        self.ram = [0] * 256
+        self.pc = 0
+        self.sp = 7
+        self.flag = 0b00000000
 
-    def load(self):
+    def ram_read(self, MAR):
+        """Read the RAM. MAR = memory address register"""
+        try:
+            return self.ram[MAR]
+        except IndexError:
+            print("index out of range for RAM read")
+
+    def ram_write(self, MDR, MAR):
+        """write to the RAM. MDR = Memory Data Register"""
+        try:
+            self.ram[MAR] = MDR
+        except IndexError:
+            print("index out of range for RAM write")
+
+    def increment_pc(self, op_code):
+        add_to_pc = (op_code >> 6) + 1
+        self.pc += add_to_pc
+
+    def load(self, filename):
         """Load a program into memory."""
 
         address = 0
 
-        # For now, we've just hardcoded a program:
+        try:
+            with open(filename) as f:
+                for line in f:
+                    # split before and after any comment symbols
+                    comment_split = line.split('#')
+                    # convert the pre-comment portion to a value
+                    number = comment_split[0].strip()  # trim whitespace
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+                    if number == "":
+                        continue  # ignore blank lines
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+                    val = int(number, 2)
+                    # print('val from file being read:', val)
+                    # store it in memory
+                    self.ram_write(val, address)
+
+                    address += 1
+
+        except FileNotFoundError:
+            print(f"{sys.argv[0]}: {filename} not found")
+            sys.exit(2)
 
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
-
         if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+            self.registers[reg_a] += self.registers[reg_b]
+        # elif op == "SUB": etc
+        elif op == "MUL":
+            self.registers[reg_a] = self.registers[reg_a] * \
+                self.registers[reg_b]
+        elif op == "CMP":
+            if self.registers[reg_a] == self.registers[reg_b]:
+                self.flag = 0b00000001
+            elif self.registers[reg_a] > self.registers[reg_b]:
+                self.flag = 0b00000010
+            else:
+                self.flag = 0b00000100
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -59,7 +98,26 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
 
         print()
-
+        
     def run(self):
         """Run the CPU."""
-        pass
+        self.running = True
+        while self.running:
+            op_code = self.ram_read(self.pc)
+            if op_code == 0b00000001:  # HLT
+                self.running = False
+                sys.exit(0) # 0 exit = success
+
+            elif op_code == 0b10000010:  # LDI 
+                address = self.ram_read(self.pc + 1)
+                data = self.ram_read(self.pc + 2)
+                self.registers[address] = data
+                self.increment_pc(op_code)
+
+            elif op_code == 0b01000111:  # PRN
+                address_a = self.ram_read(self.pc + 1)
+                print(self.registers[address_a])
+                self.increment_pc(op_code)
+                
+            else:
+                sys.exit("I don't know an operation in this file")
