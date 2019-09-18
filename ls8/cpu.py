@@ -123,6 +123,19 @@ class CPU:
                 address_b = self.ram_read(self.pc + 2)
                 self.alu('MUL', address_a, address_b)
                 self.increment_pc(op_code)
+            
+            elif op_code == 0b01000101:  # PUSH
+                register_address = self.ram_read(self.pc + 1)
+                val = self.registers[register_address]
+                self.registers[self.sp] -= 1  # decrement the stack pointer
+                self.ram[self.registers[self.sp]] = val
+                self.increment_pc(op_code)
+            elif op_code == 0b01000110:  # POP
+                register_address = self.ram_read(self.pc + 1)
+                val = self.ram[self.registers[self.sp]]
+                self.registers[register_address] = val
+                self.registers[self.sp] += 1
+                self.increment_pc(op_code)
 
             else:
                 sys.exit("I don't know an operation in this file")
