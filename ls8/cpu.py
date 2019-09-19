@@ -2,6 +2,7 @@
 
 import sys
 
+
 class CPU:
     """Main CPU class."""
 
@@ -50,8 +51,6 @@ class CPU:
                         continue  # ignore blank lines
 
                     val = int(number, 2)
-                    # print('val from file being read:', val)
-                    # store it in memory
                     self.ram_write(val, address)
 
                     address += 1
@@ -59,7 +58,6 @@ class CPU:
         except FileNotFoundError:
             print(f"{sys.argv[0]}: {filename} not found")
             sys.exit(2)
-
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -87,8 +85,8 @@ class CPU:
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
             self.pc,
-            #self.fl,
-            #self.ie,
+            # self.fl,
+            # self.ie,
             self.ram_read(self.pc),
             self.ram_read(self.pc + 1),
             self.ram_read(self.pc + 2)
@@ -98,17 +96,24 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
 
         print()
-        
+
     def run(self):
         """Run the CPU."""
         self.running = True
+        # self.trace()
         while self.running:
             op_code = self.ram_read(self.pc)
             if op_code == 0b00000001:  # HLT
                 self.running = False
-                sys.exit(0) # 0 exit = success
+                sys.exit(0)  # 0 exit = success
 
-            elif op_code == 0b10000010:  # LDI 
+            elif op_code == 0b10100000:  # ADD
+                address_a = self.ram_read(self.pc + 1)
+                address_b = self.ram_read(self.pc + 2)
+                self.alu('ADD', address_a, address_b)
+                self.increment_pc(op_code)
+
+            elif op_code == 0b10000010:  # LDI
                 address = self.ram_read(self.pc + 1)
                 data = self.ram_read(self.pc + 2)
                 self.registers[address] = data
@@ -118,6 +123,37 @@ class CPU:
                 address_a = self.ram_read(self.pc + 1)
                 print(self.registers[address_a])
                 self.increment_pc(op_code)
-                
+
+            elif op_code == 0b10100010:  # MUL
+                address_a = self.ram_read(self.pc + 1)
+                address_b = self.ram_read(self.pc + 2)
+                self.alu('MUL', address_a, address_b)
+                self.increment_pc(op_code)
+
+            elif op_code == 0b01000101:  # PUSH
+                register_address = self.ram_read(self.pc + 1)
+                val = self.registers[register_address]
+                self.registers[self.sp] -= 1  # decrement the stack pointer
+                self.ram[self.registers[self.sp]] = val
+                self.increment_pc(op_code)
+
+            elif op_code == 0b01000110:  # POP
+                register_address = self.ram_read(self.pc + 1)
+                val = self.ram[self.registers[self.sp]]
+                self.registers[register_address] = val
+                self.registers[self.sp] += 1
+                self.increment_pc(op_code)
+
+            elif op_code == 0b01010000:  # CALL
+                self.registers[self.sp] -= 1
+                self.ram[self.registers[self.sp]] = self.pc + 2
+                address_of_subroutine = self.ram[self.pc + 1]
+                self.pc = self.registers[address_of_subroutine]
+
+            elif op_code == 0b00010001:  # RET
+                self.pc = self.ram[self.registers[self.sp]]
+                self.registers[self.sp] += 1
+
             else:
+                print(bin(op_code))
                 sys.exit("I don't know an operation in this file")
