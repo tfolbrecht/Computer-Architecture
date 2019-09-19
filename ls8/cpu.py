@@ -107,6 +107,12 @@ class CPU:
                 self.running = False
                 sys.exit(0)  # 0 exit = success
 
+            elif op_code == 0b10100000:  # ADD
+                address_a = self.ram_read(self.pc + 1)
+                address_b = self.ram_read(self.pc + 2)
+                self.alu('ADD', address_a, address_b)
+                self.increment_pc(op_code)
+
             elif op_code == 0b10000010:  # LDI
                 address = self.ram_read(self.pc + 1)
                 data = self.ram_read(self.pc + 2)
@@ -123,13 +129,14 @@ class CPU:
                 address_b = self.ram_read(self.pc + 2)
                 self.alu('MUL', address_a, address_b)
                 self.increment_pc(op_code)
-            
+
             elif op_code == 0b01000101:  # PUSH
                 register_address = self.ram_read(self.pc + 1)
                 val = self.registers[register_address]
                 self.registers[self.sp] -= 1  # decrement the stack pointer
                 self.ram[self.registers[self.sp]] = val
                 self.increment_pc(op_code)
+
             elif op_code == 0b01000110:  # POP
                 register_address = self.ram_read(self.pc + 1)
                 val = self.ram[self.registers[self.sp]]
@@ -137,5 +144,16 @@ class CPU:
                 self.registers[self.sp] += 1
                 self.increment_pc(op_code)
 
+            elif op_code == 0b01010000:  # CALL
+                self.registers[self.sp] -= 1
+                self.ram[self.registers[self.sp]] = self.pc + 2
+                address_of_subroutine = self.ram[self.pc + 1]
+                self.pc = self.registers[address_of_subroutine]
+
+            elif op_code == 0b00010001:  # RET
+                self.pc = self.ram[self.registers[self.sp]]
+                self.registers[self.sp] += 1
+
             else:
+                print(bin(op_code))
                 sys.exit("I don't know an operation in this file")
